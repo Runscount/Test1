@@ -1,3 +1,18 @@
+/**
+ * Find / Recommended Routes Page
+ * 
+ * This page allows users to:
+ * 1. Generate custom running routes using Mapbox Directions API (via /api/generate-route)
+ * 2. Get recommended routes from existing Chicago routes based on preferences (via /api/recommend)
+ * 
+ * The /api/recommend endpoint returns ScoredRoute[] which includes:
+ * - The original Route object with all properties (distance, surfaceType, safetyScore, etc.)
+ * - score: number (0-100, weighted total score for ranking)
+ * - scoreBreakdown: object with component scores (scenic, safety, lighting, elevation, popularity, distance)
+ * 
+ * Routes are sorted by total score (highest first) and displayed as cards.
+ * Clicking a recommended route shows its geometry on the map.
+ */
 "use client";
 
 import {
@@ -24,11 +39,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { geocodeLocation } from "@/lib/geocode";
 import { searchLocations } from "@/lib/locationSearch";
-import { useGeneratedRoute } from "@/lib/useGeneratedRoute";
 import { cn } from "@/lib/utils";
 import GeneratedRouteMap from "@/components/GeneratedRouteMap";
+import type { ScoredRoute } from "@/lib/recommendation";
 
 const routeTypeOptions = [
   { value: "loop", label: "Loop" },
@@ -62,30 +76,27 @@ export default function FindRoutePage() {
   const [surfaceType, setSurfaceType] = useState("any");
   const [elevation, setElevation] = useState("rolling");
   const [safetyLevel, setSafetyLevel] = useState("80");
-  const [userLocation, setUserLocation] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  
+  // Consolidated starting location coordinates
+  const [startLat, setStartLat] = useState<number | null>(null);
+  const [startLng, setStartLng] = useState<number | null>(null);
+  
   const [locating, setLocating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [generatedGeometry, setGeneratedGeometry] =
-    useState<GeoJSON.LineString | null>(null);
   const [suggestions, setSuggestions] = useState<
     Array<{ id: string; name: string; lat: number; lng: number }>
   >([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedLocationCoords, setSelectedLocationCoords] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
   const suggestionContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data, loading, error, generateRoute } = useGeneratedRoute();
+  // Recommendation state
+  const [recommendedRoutes, setRecommendedRoutes] = useState<ScoredRoute[]>([]);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [errorRecommendations, setErrorRecommendations] = useState<string | null>(null);
 
   const distanceMiles = useMemo(() => distanceValue[0], [distanceValue]);
-  const previewDistance = data?.distanceMiles;
-  const previewDuration = data?.durationMinutes;
 
   useEffect(() => {
     const query = locationInput.trim();
@@ -142,16 +153,16 @@ export default function FindRoutePage() {
     setFormError(null);
     setSuggestions([]);
     setShowSuggestions(false);
-    setSelectedLocationCoords(null);
     setLocationInput("");
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocating(false);
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setStartLat(lat);
+        setStartLng(lng);
+        setLocationInput(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
       },
       () => {
         setLocating(false);
@@ -160,43 +171,102 @@ export default function FindRoutePage() {
     );
   }, []);
 
-  const handleGenerateRoute = useCallback(async () => {
-    setFormError(null);
-    setGeneratedGeometry(null);
-
-    let coordinates: { lat: number; lng: number } | null = null;
-    const trimmedInput = locationInput.trim();
-
-    if (selectedLocationCoords) {
-      coordinates = selectedLocationCoords;
-    } else if (!trimmedInput && userLocation) {
-      coordinates = userLocation;
-    } else if (trimmedInput) {
-      coordinates = await geocodeLocation(trimmedInput);
-      if (!coordinates) {
-        setFormError("We couldn't find that location. Try another search.");
-        return;
-      }
-    } else if (userLocation) {
-      coordinates = userLocation;
-    } else {
-      setFormError("Enter a location or use your current position.");
+  const handleFindRecommendedRoutes = useCallback(async () => {
+    // Validate starting location coordinates
+    if (startLat === null || startLng === null) {
+      setFormError("Please enter a starting location first");
       return;
     }
 
-    const result = await generateRoute(
-      coordinates.lat,
-      coordinates.lng,
-      distanceMiles
-    );
+    setLoadingRecommendations(true);
+    setErrorRecommendations(null);
+    setFormError(null);
+    setRecommendedRoutes([]);
+    setSelectedRouteIndex(null);
 
-    if (result?.geometry) {
-      console.log("Setting generatedGeometry:", result.geometry);
-      setGeneratedGeometry(result.geometry);
-    } else {
-      console.warn("NO geometry in result:", result);
+    // Build preferences from form state according to mapping rules
+    const params = new URLSearchParams();
+
+    // Location parameters (required)
+    params.append("lat", startLat.toString());
+    params.append("lng", startLng.toString());
+    params.append("radius", "3"); // 3 mile radius default
+
+    // Distance mapping: distance slider value → targetDistance, with tolerance = 0.3
+    params.append("targetDistance", distanceMiles.toString());
+    params.append("distanceTolerance", "0.3");
+
+    // Route type mapping: route type select → routeType
+    // Note: The API currently doesn't filter by route type, but we pass it for future use
+    if (routeType) {
+      params.append("routeType", routeType);
     }
-  }, [distanceMiles, generateRoute, locationInput, userLocation]);
+
+    // Safety emphasis mapping:
+    // "Any" → default safety weight
+    // "70+ Safety Score" → safetyWeight based on minimum
+    // "80+ Safety Score" → safetyWeight based on minimum
+    // "90+ Safety Score" → safetyWeight based on minimum
+    if (safetyLevel !== "any") {
+      const minSafety = parseInt(safetyLevel, 10);
+      // Increase safety weight to emphasize safety when minimum is required
+      // Higher minimum = higher weight on safety score
+      const safetyWeight = minSafety / 100;
+      params.append("safetyWeight", safetyWeight.toString());
+    } else {
+      // Default safety weight
+      params.append("safetyWeight", "0.3");
+    }
+
+    // Surface preference mapping:
+    // Use the surfaceType value directly
+    params.append("preferredSurface", surfaceType);
+
+    // Elevation mapping:
+    // "Flat" → preferHills = false
+    // "Hilly" → preferHills = true
+    // "Rolling" → leave preferHills undefined for neutral preference
+    if (elevation === "flat") {
+      params.append("preferHills", "false");
+    } else if (elevation === "hilly") {
+      params.append("preferHills", "true");
+    }
+
+    // Always set scenic = true (high scenic weight)
+    params.append("scenicWeight", "0.4"); // Higher weight for scenic preference
+
+    // Night mode: default to false (no time-of-day control exists yet)
+    params.append("nightMode", "false");
+
+    // Limit to top 3 highest-scoring routes
+    params.append("limit", "3");
+
+    try {
+      const response = await fetch(`/api/recommend?${params.toString()}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || "Failed to fetch recommendations");
+      }
+
+      const data = await response.json();
+      
+      if (data.routes && Array.isArray(data.routes)) {
+        setRecommendedRoutes(data.routes);
+        if (data.routes.length > 0) {
+          setSelectedRouteIndex(0);
+        }
+      } else {
+        throw new Error("Invalid response format");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to fetch recommendations";
+      setErrorRecommendations(message);
+      console.error("Error fetching recommendations:", err);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  }, [startLat, startLng, distanceMiles, routeType, surfaceType, elevation, safetyLevel]);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-blue-50 via-white to-white px-4 py-10">
@@ -236,7 +306,8 @@ export default function FindRoutePage() {
                     value={locationInput}
                     onChange={(event) => {
                       setLocationInput(event.target.value);
-                      setSelectedLocationCoords(null);
+                      setStartLat(null);
+                      setStartLng(null);
                     }}
                     onFocus={() => {
                       if (suggestions.length > 0) {
@@ -264,13 +335,10 @@ export default function FindRoutePage() {
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => {
                               setLocationInput(suggestion.name);
-                              setSelectedLocationCoords({
-                                lat: suggestion.lat,
-                                lng: suggestion.lng,
-                              });
+                              setStartLat(suggestion.lat);
+                              setStartLng(suggestion.lng);
                               setSuggestions([]);
                               setShowSuggestions(false);
-                              setUserLocation(null);
                             }}
                           >
                             <span className="text-sm font-medium text-gray-900">
@@ -364,66 +432,121 @@ export default function FindRoutePage() {
               type="button"
               className={cn(
                 "w-full rounded-2xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 py-6 text-lg font-semibold text-white shadow-lg shadow-blue-200 transition hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600",
-                loading && "opacity-70"
+                loadingRecommendations && "opacity-70"
               )}
-              onClick={handleGenerateRoute}
-              disabled={loading}
+              onClick={handleFindRecommendedRoutes}
+              disabled={loadingRecommendations}
             >
-              {loading ? "Designing your route..." : "Generate My Route"}
+              {loadingRecommendations ? "Finding routes..." : "Get Recommended Routes"}
             </Button>
           </CardContent>
         </Card>
 
-        {loading && (
-          <div className="mx-auto w-full max-w-4xl rounded-3xl bg-white/70 p-10 shadow-xl">
-            <div className="flex flex-col gap-6">
-              <div className="h-6 w-40 rounded-full bg-gray-200/80 animate-pulse" />
-              <div className="h-96 w-full rounded-2xl bg-gray-100 animate-pulse" />
-            </div>
-          </div>
-        )}
-
-        {error && !loading && (
+        {/* Recommended Routes Section */}
+        {errorRecommendations && (
           <div className="mx-auto w-full max-w-4xl rounded-3xl border border-red-100 bg-red-50/80 p-6 text-center text-red-700 shadow-lg">
-            Unable to generate route. Please tweak your inputs and try again.
+            {errorRecommendations}
           </div>
         )}
 
-        {generatedGeometry && data && !loading && (
-          <div className="mx-auto w-full max-w-5xl space-y-4 rounded-3xl border border-blue-100 bg-white/80 p-8 shadow-2xl">
-            <div className="flex flex-wrap items-baseline gap-4">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-blue-500">
-                  Preview
-                </p>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Custom route ready
-                </h2>
-              </div>
-              <div className="flex gap-6 text-sm text-gray-600">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-400">
-                    Distance
-                  </p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {previewDistance ? previewDistance.toFixed(1) : "--"} mi
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-gray-400">
-                    Duration
-                  </p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {previewDuration ? Math.round(previewDuration) : "--"} min
-                  </p>
-                </div>
-              </div>
+        {recommendedRoutes.length > 0 && (
+          <div className="mx-auto w-full max-w-5xl space-y-6">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold text-gray-900">
+                Your Recommended Routes
+              </h2>
+              <p className="mt-2 text-gray-600">
+                Sorted by match score (highest first)
+              </p>
             </div>
-            <div className="h-96 overflow-hidden rounded-3xl shadow-xl ring-1 ring-blue-100">
-              <GeneratedRouteMap geometry={generatedGeometry} />
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {recommendedRoutes.map((route, index) => (
+                <Card
+                  key={route.id}
+                  className={cn(
+                    "cursor-pointer transition-all hover:shadow-lg",
+                    selectedRouteIndex === index
+                      ? "ring-2 ring-blue-500 shadow-md"
+                      : "hover:border-blue-300"
+                  )}
+                  onClick={() => setSelectedRouteIndex(index)}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <CardTitle className="text-lg">{route.name}</CardTitle>
+                      {route.score !== undefined && (
+                        <div className="rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-700">
+                          {route.score.toFixed(0)}%
+                        </div>
+                      )}
+                    </div>
+                    <CardDescription>
+                      {route.distance} mi • {route.elevationGain} ft elevation
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Surface:</span>
+                      <span className="font-medium capitalize">
+                        {route.surfaceType}
+                      </span>
+                    </div>
+                    {route.safetyScore !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Safety:</span>
+                        <span className="font-medium">{route.safetyScore}/100</span>
+                      </div>
+                    )}
+                    {route.scenicScore !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Scenic:</span>
+                        <span className="font-medium">{route.scenicScore}/100</span>
+                      </div>
+                    )}
+                    {route.hasLighting && (
+                      <div className="text-xs text-green-600">✓ Well-lit</div>
+                    )}
+                    {route.scoreBreakdown && (
+                      <div className="pt-2 border-t text-xs text-gray-500">
+                        <div>Match: {route.scoreBreakdown.distance?.toFixed(0) || 0}%</div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
+
+            {/* Map Preview for Selected Route */}
+            {selectedRouteIndex !== null && recommendedRoutes[selectedRouteIndex] && (
+              <div className="mt-8 rounded-3xl border border-blue-100 bg-white/80 p-8 shadow-2xl">
+                <div className="mb-4">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {recommendedRoutes[selectedRouteIndex].name}
+                  </h3>
+                  {recommendedRoutes[selectedRouteIndex].description && (
+                    <p className="mt-2 text-gray-600">
+                      {recommendedRoutes[selectedRouteIndex].description}
+                    </p>
+                  )}
+                </div>
+                <div className="h-96 overflow-hidden rounded-3xl shadow-xl ring-1 ring-blue-100">
+                  <GeneratedRouteMap
+                    geometry={
+                      recommendedRoutes[selectedRouteIndex]
+                        ? ({
+                            type: "LineString",
+                            coordinates: recommendedRoutes[selectedRouteIndex].geojson.coordinates,
+                          } as GeoJSON.LineString)
+                        : null
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
+
       </div>
     </div>
   );
