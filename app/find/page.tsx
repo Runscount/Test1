@@ -43,6 +43,7 @@ import { searchLocations } from "@/lib/locationSearch";
 import { cn } from "@/lib/utils";
 import GeneratedRouteMap from "@/components/GeneratedRouteMap";
 import type { ScoredRoute } from "@/lib/recommendation";
+import WeatherCard, { getWeatherCondition } from "@/components/WeatherCard";
 
 const routeTypeOptions = [
   { value: "loop", label: "Loop" },
@@ -96,7 +97,49 @@ export default function FindRoutePage() {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [errorRecommendations, setErrorRecommendations] = useState<string | null>(null);
 
+  // Weather state
+  const [weather, setWeather] = useState<{
+    temperature: number;
+    wind: number;
+    condition: string;
+  } | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+
   const distanceMiles = useMemo(() => distanceValue[0], [distanceValue]);
+
+  // Fetch weather when location is resolved
+  const fetchWeather = useCallback(async (lat: number, lon: number) => {
+    setWeatherLoading(true);
+    try {
+      const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`
+      );
+      if (!res.ok) {
+        throw new Error("Failed to fetch weather");
+      }
+      const data = await res.json();
+      const weatherCode = data.current_weather?.weathercode;
+      setWeather({
+        temperature: data.current_weather.temperature,
+        wind: data.current_weather.windspeed,
+        condition: getWeatherCondition(weatherCode),
+      });
+    } catch (error) {
+      console.error("Error fetching weather:", error);
+      setWeather(null);
+    } finally {
+      setWeatherLoading(false);
+    }
+  }, []);
+
+  // Fetch weather when starting location coordinates are available
+  useEffect(() => {
+    if (startLat !== null && startLng !== null) {
+      fetchWeather(startLat, startLng);
+    } else {
+      setWeather(null);
+    }
+  }, [startLat, startLng, fetchWeather]);
 
   useEffect(() => {
     const query = locationInput.trim();
@@ -367,6 +410,18 @@ export default function FindRoutePage() {
                 </Button>
               </div>
             </div>
+
+            {/* Weather Card */}
+            {(weather !== null || weatherLoading) && (
+              <div className="mt-2">
+                <WeatherCard
+                  temperature={weather?.temperature ?? null}
+                  condition={weather?.condition ?? null}
+                  wind={weather?.wind ?? null}
+                  loading={weatherLoading}
+                />
+              </div>
+            )}
 
             <div className="space-y-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-6">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
