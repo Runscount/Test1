@@ -107,6 +107,15 @@ export default function FindRoutePage() {
 
   const distanceMiles = useMemo(() => distanceValue[0], [distanceValue]);
 
+  // Conversion helper functions
+  const cToF = (c: number): number => {
+    return Math.round((c * 9/5) + 32);
+  };
+
+  const msToMph = (ms: number): number => {
+    return Math.round(ms * 2.23694);
+  };
+
   // Fetch weather when location is resolved
   const fetchWeather = useCallback(async (lat: number, lon: number) => {
     setWeatherLoading(true);
@@ -120,8 +129,8 @@ export default function FindRoutePage() {
       const data = await res.json();
       const weatherCode = data.current_weather?.weathercode;
       setWeather({
-        temperature: data.current_weather.temperature,
-        wind: data.current_weather.windspeed,
+        temperature: cToF(data.current_weather.temperature),
+        wind: msToMph(data.current_weather.windspeed),
         condition: getWeatherCondition(weatherCode),
       });
     } catch (error) {

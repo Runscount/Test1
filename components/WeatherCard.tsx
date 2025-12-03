@@ -97,9 +97,7 @@ export default function WeatherCard({
     return null;
   }
 
-  const tempF = Math.round(temperature);
-  const windMph = wind !== null ? Math.round(wind * 0.621371) : null; // Convert km/h to mph
-
+  // Temperature and wind are already converted to °F and mph in fetchWeather
   return (
     <div className="rounded-xl bg-gradient-to-br from-white/70 to-white/50 backdrop-blur-md p-4 shadow-md border border-gray-100/50">
       <div className="flex items-center gap-4">
@@ -109,14 +107,14 @@ export default function WeatherCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-3xl font-bold text-gray-900">
-              {tempF}°F
+              {temperature}°F
             </span>
             <span className="text-sm text-gray-600">— {condition}</span>
           </div>
-          {windMph !== null && (
+          {wind !== null && (
             <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
               <Wind className="h-4 w-4" />
-              <span>Wind: {windMph} mph</span>
+              <span>Wind: {wind} mph</span>
             </div>
           )}
         </div>
