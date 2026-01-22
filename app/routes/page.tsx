@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { sampleRoutes } from "@/data/routes";
 import { Map } from "@/components/Map";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import type { SurfaceType } from "@/types/route";
 import Link from "next/link";
 
@@ -46,38 +47,39 @@ export default function RoutesPage() {
   const displayRouteId = hoveredRouteId || selectedRouteId;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col lg:flex-row">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col bg-gradient-hero lg:flex-row">
       {/* Left Sidebar - Route List */}
-      <div className="w-full border-r bg-gray-50 lg:w-96 lg:overflow-y-auto">
-        <div className="sticky top-0 z-10 bg-white p-4 shadow-sm">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900">Routes</h1>
+      <div className="w-full border-r border-border bg-background/80 backdrop-blur lg:w-96 lg:overflow-y-auto">
+        <div className="sticky top-16 z-10 border-b border-border bg-background/90 p-5 backdrop-blur">
+          <h1 className="text-2xl font-semibold text-foreground">Routes</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Filter by distance, surface, and safety.
+          </p>
 
           {/* Filters */}
-          <div className="space-y-4">
+          <div className="mt-5 space-y-4">
             {/* Distance Filter */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-foreground">
                 Distance (miles)
               </label>
               <div className="flex gap-2">
-                <input
+                <Input
                   type="number"
                   min="0"
                   max="20"
                   step="0.5"
                   value={minDistance}
                   onChange={(e) => setMinDistance(parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                   placeholder="Min"
                 />
-                <input
+                <Input
                   type="number"
                   min="0"
                   max="20"
                   step="0.5"
                   value={maxDistance}
                   onChange={(e) => setMaxDistance(parseFloat(e.target.value) || 10)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                   placeholder="Max"
                 />
               </div>
@@ -85,7 +87,7 @@ export default function RoutesPage() {
 
             {/* Surface Type Filter */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-foreground">
                 Surface Type
               </label>
               <select
@@ -93,7 +95,7 @@ export default function RoutesPage() {
                 onChange={(e) =>
                   setSurfaceFilter(e.target.value as SurfaceType | "all")
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground shadow-soft transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/40"
               >
                 <option value="all">All</option>
                 <option value="paved">Paved</option>
@@ -104,13 +106,13 @@ export default function RoutesPage() {
 
             {/* Sort By */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
+              <label className="mb-2 block text-sm font-medium text-foreground">
                 Sort by
               </label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm text-foreground shadow-soft transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/40"
               >
                 <option value="safetyScore">Safety Score</option>
                 <option value="scenicScore">Scenic Score</option>
@@ -119,19 +121,19 @@ export default function RoutesPage() {
             </div>
           </div>
 
-          <p className="mt-4 text-sm text-gray-600">
+          <p className="mt-4 text-sm text-muted-foreground">
             {filteredAndSortedRoutes.length} route
             {filteredAndSortedRoutes.length !== 1 ? "s" : ""} found
           </p>
         </div>
 
         {/* Route Cards */}
-        <div className="space-y-4 p-4">
+        <div className="space-y-4 p-5">
           {filteredAndSortedRoutes.map((route) => (
             <Link key={route.id} href={`/routes/${route.id}`}>
               <Card
-                className={`cursor-pointer transition-all hover:shadow-md ${
-                  displayRouteId === route.id ? "ring-2 ring-blue-500" : ""
+                className={`cursor-pointer transition-all hover-lift ${
+                  displayRouteId === route.id ? "ring-2 ring-primary" : ""
                 }`}
                 onMouseEnter={() => setHoveredRouteId(route.id)}
                 onMouseLeave={() => setHoveredRouteId(null)}
@@ -146,23 +148,23 @@ export default function RoutesPage() {
                 <CardContent>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Surface:</span>
+                      <span className="text-muted-foreground">Surface:</span>
                       <span className="font-medium capitalize">
                         {route.surfaceType}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Safety:</span>
+                      <span className="text-muted-foreground">Safety:</span>
                       <span className="font-medium">{route.safetyScore}/100</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Weather:</span>
+                      <span className="text-muted-foreground">Weather:</span>
                       <span className="font-medium">
                         {route.weatherComfort}/100
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Scenic:</span>
+                      <span className="text-muted-foreground">Scenic:</span>
                       <span className="font-medium">{route.scenicScore}/100</span>
                     </div>
                     {route.hasLighting && (

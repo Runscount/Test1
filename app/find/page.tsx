@@ -321,27 +321,27 @@ export default function FindRoutePage() {
   }, [startLat, startLng, distanceMiles, routeType, surfaceType, elevation, safetyLevel]);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-blue-50 via-white to-white px-4 py-10">
-      <div className="mx-auto flex max-w-5xl flex-col gap-8">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-hero px-4 py-10">
+      <div className="container mx-auto flex max-w-5xl flex-col gap-8 px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <p className="text-sm uppercase tracking-[0.3em] text-blue-500">
+          <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
             Smart Route Builder
           </p>
-          <h1 className="mt-4 text-4xl font-bold text-gray-900 sm:text-5xl">
+          <h1 className="mt-4 text-4xl font-bold text-foreground sm:text-5xl">
             Find Your Perfect Route
           </h1>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-4 text-lg text-muted-foreground">
             Tell us what you&apos;re in the mood for—we&apos;ll craft a beautiful
             Chicago run tailored to you.
           </p>
         </div>
 
-        <Card className="mx-auto w-full max-w-4xl rounded-3xl border-0 bg-white/90 shadow-xl ring-1 ring-blue-100 backdrop-blur">
+        <Card className="mx-auto w-full max-w-4xl border-0 shadow-card">
           <CardHeader className="space-y-2">
-            <CardTitle className="text-2xl text-gray-900">
+            <CardTitle className="text-2xl text-foreground">
               Route Preferences
             </CardTitle>
-            <CardDescription className="text-base text-gray-500">
+            <CardDescription className="text-base text-muted-foreground">
               Customize the vibe, terrain, and difficulty. We&apos;ll do the heavy
               lifting.
             </CardDescription>
@@ -349,7 +349,7 @@ export default function FindRoutePage() {
           <CardContent className="space-y-6">
             <div className="grid gap-5 lg:grid-cols-[3fr_1fr]">
               <div className="space-y-2" ref={suggestionContainerRef}>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-foreground">
                   Starting location
                 </label>
                 <div className="relative">
@@ -368,13 +368,13 @@ export default function FindRoutePage() {
                     }}
                   />
                   {showSuggestions && (
-                    <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-2xl border border-gray-100 bg-white p-2 shadow-2xl">
+                    <div className="absolute left-0 right-0 top-full z-20 mt-2 rounded-2xl border border-border bg-background p-2 shadow-card">
                       {isSearching ? (
                         <div className="space-y-2">
                           {[...Array(3)].map((_, idx) => (
                             <div
                               key={idx}
-                              className="h-10 rounded-xl bg-gray-100 animate-pulse"
+                              className="h-10 rounded-xl bg-muted animate-pulse"
                             />
                           ))}
                         </div>
@@ -383,7 +383,7 @@ export default function FindRoutePage() {
                           <button
                             key={suggestion.id}
                             type="button"
-                            className="flex w-full flex-col rounded-xl px-4 py-3 text-left transition hover:bg-blue-50"
+                            className="flex w-full flex-col rounded-xl px-4 py-3 text-left transition hover:bg-muted/60"
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => {
                               setLocationInput(suggestion.name);
@@ -393,13 +393,13 @@ export default function FindRoutePage() {
                               setShowSuggestions(false);
                             }}
                           >
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-foreground">
                               {suggestion.name}
                             </span>
                           </button>
                         ))
                       ) : (
-                        <p className="px-3 py-2 text-sm text-gray-500">
+                        <p className="px-3 py-2 text-sm text-muted-foreground">
                           No matches yet. Try a different search.
                         </p>
                       )}
@@ -411,7 +411,7 @@ export default function FindRoutePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50"
+                  className="w-full border-border text-foreground"
                   onClick={handleUseMyLocation}
                   disabled={locating}
                 >
@@ -432,17 +432,17 @@ export default function FindRoutePage() {
               </div>
             )}
 
-            <div className="space-y-4 rounded-2xl bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 p-6">
+            <div className="space-y-4 rounded-3xl bg-gradient-card p-6 shadow-soft">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">
+                  <p className="text-sm font-medium text-foreground">
                     Desired distance
                   </p>
-                  <p className="text-3xl font-semibold text-gray-900">
+                  <p className="text-3xl font-semibold text-foreground">
                     {distanceMiles.toFixed(1)} mi
                   </p>
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Slide to adjust between short shakeouts and longer adventures.
                 </p>
               </div>
@@ -453,7 +453,7 @@ export default function FindRoutePage() {
                 step={0.1}
                 onValueChange={setDistanceValue}
               />
-              <div className="flex justify-between text-xs font-medium text-gray-500">
+              <div className="flex justify-between text-xs font-medium text-muted-foreground">
                 <span>1 mi</span>
                 <span>10 mi</span>
               </div>
@@ -487,7 +487,7 @@ export default function FindRoutePage() {
             </div>
 
             {formError && (
-              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {formError}
               </div>
             )}
@@ -495,7 +495,7 @@ export default function FindRoutePage() {
             <Button
               type="button"
               className={cn(
-                "w-full rounded-2xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 py-6 text-lg font-semibold text-white shadow-lg shadow-blue-200 transition hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600",
+                "w-full rounded-full bg-gradient-primary py-6 text-lg font-semibold text-white shadow-card transition hover:opacity-90",
                 loadingRecommendations && "opacity-70"
               )}
               onClick={handleFindRecommendedRoutes}
@@ -629,9 +629,9 @@ function FieldSelect({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <label className="text-sm font-medium text-foreground">{label}</label>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="rounded-2xl bg-white/90">
+        <SelectTrigger className="rounded-2xl bg-background/90">
           <SelectValue placeholder="Select" />
         </SelectTrigger>
         <SelectContent>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -34,7 +35,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-gradient-hero px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">Log in</CardTitle>
@@ -45,41 +46,39 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+              <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
               </div>
             )}
             <div>
               <label
                 htmlFor="email"
-                className="mb-2 block text-sm font-medium text-gray-700"
+                className="mb-2 block text-sm font-medium text-foreground"
               >
                 Email
               </label>
-              <input
+              <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="you@example.com"
               />
             </div>
             <div>
               <label
                 htmlFor="password"
-                className="mb-2 block text-sm font-medium text-gray-700"
+                className="mb-2 block text-sm font-medium text-foreground"
               >
                 Password
               </label>
-              <input
+              <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="••••••••"
               />
             </div>
@@ -87,9 +86,9 @@ export default function LoginPage() {
               {loading ? "Logging in..." : "Log in"}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-blue-600 hover:underline">
+            <Link href="/auth/signup" className="text-primary hover:underline">
               Sign up
             </Link>
           </p>

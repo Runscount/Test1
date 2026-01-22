@@ -9,8 +9,6 @@ interface WeatherCardProps {
   loading: boolean;
 }
 
-// Map weather codes to human-readable text
-// Based on WMO Weather interpretation codes (WW)
 const weatherCodeMap: Record<number, string> = {
   0: "Clear",
   1: "Mainly clear",
@@ -42,32 +40,30 @@ const weatherCodeMap: Record<number, string> = {
   99: "Thunderstorm with heavy hail",
 };
 
-// Get weather icon based on condition
 function getWeatherIcon(condition: string | null) {
-  if (!condition) return <Sun className="h-8 w-8 text-yellow-500" />;
-  
+  if (!condition) return <Sun className="h-8 w-8 text-primary" />;
+
   const lowerCondition = condition.toLowerCase();
-  
-  if (lowerCondition.includes("clear") || lowerCondition.includes("mainly clear")) {
-    return <Sun className="h-8 w-8 text-yellow-500" />;
+
+  if (lowerCondition.includes("clear")) {
+    return <Sun className="h-8 w-8 text-primary" />;
   }
   if (lowerCondition.includes("cloudy") || lowerCondition.includes("overcast")) {
-    return <Cloudy className="h-8 w-8 text-gray-500" />;
+    return <Cloudy className="h-8 w-8 text-muted-foreground" />;
   }
   if (lowerCondition.includes("rain") || lowerCondition.includes("drizzle")) {
-    return <CloudRain className="h-8 w-8 text-blue-500" />;
+    return <CloudRain className="h-8 w-8 text-accent" />;
   }
   if (lowerCondition.includes("snow")) {
-    return <CloudSnow className="h-8 w-8 text-blue-300" />;
+    return <CloudSnow className="h-8 w-8 text-accent" />;
   }
   if (lowerCondition.includes("fog")) {
-    return <Cloud className="h-8 w-8 text-gray-400" />;
+    return <Cloud className="h-8 w-8 text-muted-foreground" />;
   }
-  
-  return <Sun className="h-8 w-8 text-yellow-500" />;
+
+  return <Sun className="h-8 w-8 text-primary" />;
 }
 
-// Convert weather code to human-readable text
 export function getWeatherCondition(code: number | null): string {
   if (code === null || code === undefined) return "Unknown";
   return weatherCodeMap[code] || "Unknown";
@@ -81,12 +77,12 @@ export default function WeatherCard({
 }: WeatherCardProps) {
   if (loading) {
     return (
-      <div className="rounded-xl bg-gradient-to-br from-white/70 to-white/50 backdrop-blur-md p-4 shadow-md border border-gray-100/50">
+      <div className="glass-card rounded-2xl p-4">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse" />
+          <div className="h-12 w-12 rounded-full bg-muted animate-pulse" />
           <div className="flex-1 space-y-2">
-            <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
-            <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+            <div className="h-6 w-24 rounded bg-muted animate-pulse" />
+            <div className="h-4 w-32 rounded bg-muted animate-pulse" />
           </div>
         </div>
       </div>
@@ -97,22 +93,19 @@ export default function WeatherCard({
     return null;
   }
 
-  // Temperature and wind are already converted to °F and mph in fetchWeather
   return (
-    <div className="rounded-xl bg-gradient-to-br from-white/70 to-white/50 backdrop-blur-md p-4 shadow-md border border-gray-100/50">
+    <div className="glass-card rounded-2xl p-4">
       <div className="flex items-center gap-4">
-        <div className="flex-shrink-0">
-          {getWeatherIcon(condition)}
-        </div>
+        <div className="flex-shrink-0">{getWeatherIcon(condition)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-3xl font-bold text-gray-900">
+            <span className="text-3xl font-bold text-foreground">
               {temperature}°F
             </span>
-            <span className="text-sm text-gray-600">— {condition}</span>
+            <span className="text-sm text-muted-foreground">— {condition}</span>
           </div>
           {wind !== null && (
-            <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
+            <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
               <Wind className="h-4 w-4" />
               <span>Wind: {wind} mph</span>
             </div>
@@ -122,4 +115,3 @@ export default function WeatherCard({
     </div>
   );
 }
-
